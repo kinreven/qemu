@@ -33,4 +33,9 @@ config XTENSA_NXP_ADSP_IMX8
 
 config XTENSA_NXP_ADSP_IMX8M
     bool
-    
+
+config XTENSA_MTK_ADSP
+    bool
+
+config XTENSA_MTK_ADSP_MT8195
+    bool

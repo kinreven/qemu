@@ -17,5 +17,6 @@ xtensa_ss.add(when: 'CONFIG_XTENSA_NXP_ADSP_IMX8', if_true: files(
    'imx8-mu.c',
    'imx8.c'))
 xtensa_ss.add(when: 'CONFIG_XTENSA_NXP_ADSP_IMX8M', if_true: files('imx8m.c'))
+xtensa_ss.add(when: 'CONFIG_XTENSA_MTK_ADSP_MT8195', if_true: files('mt8195.c'))
 
 hw_arch += {'xtensa': xtensa_ss}

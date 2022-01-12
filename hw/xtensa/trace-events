@@ -10,3 +10,11 @@ adsp_dsp_host_msg(const char *event, uint32_t msg) "host %s %d"
 adsp_dsp_host_irq(const char *name, uint32_t masking, uint32_t mask, uint32_t active, uint32_t cmd) "mask: %s masking 0x%08x mask 0x%8x active 0x%8x cmd 0x%8x"
 adsp_dsp_shim_irq(const char *event) "%s"
 adsp_dsp_shim_timer(const char *event, uint32_t value) "%s time 0x%8x"
+
+#mt8195.c
+adsp_dsp_cfg_read(uint32_t addr, uint32_t value) "mbox: R 0x%08x value 0x%8x"
+adsp_dsp_cfg_write(uint32_t addr, uint32_t value) "mbox: W 0x%08x value 0x%8x"
+adsp_dsp_clk_read(uint32_t addr, uint32_t value) "mbox: R 0x%08x value 0x%8x"
+adsp_dsp_clk_write(uint32_t addr, uint32_t value) "mbox: W 0x%08x value 0x%8x"
+adsp_dsp_mb_read(uint32_t addr, uint32_t value) "mbox: R 0x%08x value 0x%8x"
+adsp_dsp_mb_write(uint32_t addr, uint32_t value) "mbox: W 0x%08x value 0x%8x"
