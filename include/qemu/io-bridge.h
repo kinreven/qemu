@@ -159,6 +159,8 @@ int qemu_io_register_shm(const char *name, int region, size_t size,
 int qemu_io_sync(int region, unsigned int offset, size_t length);
 
 void qemu_io_free(void);
-void qemu_io_free_shm(int region);
+void qemu_io_free_shm(int region, int unlink);
+
+void * qemu_io_get_shm(int region);
 
 #endif

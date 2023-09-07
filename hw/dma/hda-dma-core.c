@@ -250,7 +250,7 @@ static int dma_M2M_read_host_burst(struct hda_dma_chan *hda_dma_chan)
         dma_host_complete(dmac, chan);
 
         /* free SHM */
-        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan));
+        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan), 0);
         return 0;
     }
 
@@ -296,7 +296,7 @@ static int dma_M2M_write_host_burst(struct hda_dma_chan *hda_dma_chan)
         dma_host_complete(dmac, chan);
 
         /* free SHM */
-        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan));
+        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan), 0);
         return 0;
     }
 

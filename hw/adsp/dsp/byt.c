@@ -85,7 +85,9 @@ static int bridge_cb(void *data, struct qemu_io_msg *msg)
 static void byt_irq_set(struct adsp_io_info *info, int irq, uint32_t mask)
 {
      struct adsp_dev *adsp = info->adsp;
+     qemu_mutex_lock_iothread();
      adsp_set_lvl1_irq(adsp, irq, 1);
+     qemu_mutex_unlock_iothread();
 }
 
 static void byt_irq_clear(struct adsp_io_info *info, int irq, uint32_t mask)

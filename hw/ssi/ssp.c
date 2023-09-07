@@ -112,7 +112,7 @@ static void ssp_write(void *opaque, hwaddr addr,
             sprintf(ssp->rx.file_name, "/tmp/%s-capture.wav",
                 ssp->name);
 
-            ssp->rx.fd = open(ssp->tx.file_name, O_RDONLY,
+            ssp->rx.fd = open(ssp->rx.file_name, O_RDONLY,
                 S_IRUSR | S_IWUSR | S_IXUSR);
 
             if (ssp->rx.fd < 0) {
@@ -157,6 +157,8 @@ struct adsp_ssp *_ssp[MAX_SSP] = {NULL, NULL, NULL, NULL, NULL, NULL};
 
 struct adsp_ssp *ssp_get_port(int port)
 {
+    port += 2; //skip dma
+    // printf("ssp 0x%x with port:%d\n", _ssp[port], port);
     if (port >= 0  && port < MAX_SSP)
         return _ssp[port];
 
@@ -179,5 +181,6 @@ void adsp_ssp_init(struct adsp_dev *adsp, MemoryRegion *parent,
     ssp->log = log_init(NULL);
     info->private = ssp;
     ssp_reset(info);
+    ssp->ssp_dev = info->space;
     _ssp[info->io_dev] = ssp;
 }

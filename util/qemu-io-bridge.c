@@ -52,7 +52,7 @@ static int role = ROLE_NONE;
 
 #define QEMU_IO_MAX_MSGS    8
 #define QEMU_IO_MAX_MSG_SIZE    128
-#define QEMU_IO_MAX_SHM_REGIONS    32
+#define QEMU_IO_MAX_SHM_REGIONS    128
 
 #define NAME_SIZE       64
 
@@ -377,7 +377,7 @@ void qemu_io_free(void)
     mq_unlink(_iob.child.mq_name);
 }
 
-void qemu_io_free_shm(int region)
+void qemu_io_free_shm(int region, int unlink)
 {
     int err;
 
@@ -387,8 +387,18 @@ void qemu_io_free_shm(int region)
             fprintf(stderr, "bridge-io: munmap failed %d\n", errno);
 
         /* client or host can unlink this, so it gets done twice */
-        shm_unlink(_iob.shm[region].name);
+        if (unlink) {
+            shm_unlink(_iob.shm[region].name);    
+        }
         close(_iob.shm[region].fd);
         _iob.shm[region].fd = 0;
     }
+}
+
+void * qemu_io_get_shm(int region)
+{
+    if ((region < QEMU_IO_MAX_SHM_REGIONS) && _iob.shm[region].fd)
+        return _iob.shm[region].addr;
+    else 
+        return NULL;
 }

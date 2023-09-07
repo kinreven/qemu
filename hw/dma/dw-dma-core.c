@@ -141,7 +141,7 @@ static void dma_host_complete(struct adsp_gp_dmac *dmac, uint32_t chan)
     /* send IRQ to parent */
     dma_msg->hdr.type = QEMU_IO_TYPE_DMA;
     dma_msg->hdr.msg = QEMU_IO_DMA_REQ_COMPLETE;
-    dma_msg->size = sizeof(struct qemu_io_msg_dma32);
+    dma_msg->hdr.size = sizeof(struct qemu_io_msg_dma32);
 
     log_text(dmac->log, LOG_DMA_M2M,
         "DMA req complete: src 0x%x dest 0x%x size 0x%x\n",
@@ -211,7 +211,8 @@ static int dma_M2P_copy_burst(struct dma_chan *dma_chan)
 
     sar = dmac->io[DW_SAR(chan) >> 2];
     size = dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK;
-    burst_size = size / 2;
+    
+    burst_size = size;
 
     /* copy burst from SAR to DAR */
     cpu_physical_memory_read(sar, buffer, burst_size);
@@ -285,17 +286,18 @@ static int dma_P2M_copy_burst(struct dma_chan *dma_chan)
     uint32_t buffer[0x1000];
 
     size = dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK;
-    burst_size = size / 2;
     dar = dmac->io[DW_DAR(chan) >> 2];
+
+    burst_size = size;
 
     /* read in data from SSP file */
     if (ssp->rx.fd > 0) {
-        if (write(ssp->rx.fd, buffer, burst_size) != burst_size)
+        if (read(ssp->rx.fd, buffer, burst_size) != burst_size)
             fprintf(stderr, "error: reading from SSP%d file %d\n", dma_chan->ssp, -errno);
     }
 
     /* copy burst from SAR to DAR */
-    cpu_physical_memory_read(dar, buffer, burst_size);
+    cpu_physical_memory_write(dar, buffer, burst_size);
 
     /* update SAR, DAR and bytes copied */
     dmac->io[DW_DAR(chan) >> 2] += burst_size;
@@ -355,8 +357,14 @@ static int dma_M2M_read_host_burst(struct dma_chan *dma_chan)
     dar = dmac->io[DW_DAR(chan) >> 2];
     size = dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK;
 
+    burst_size = size;
+
     /* copy burst from SAR to DAR */
     cpu_physical_memory_write(dar, dma_chan->ptr, burst_size);
+    if (dma_chan->fd > 0) {
+        if (write(dma_chan->fd, dma_chan->ptr, burst_size) != burst_size)
+            fprintf(stderr, "error: writing to DMAC file %d\n", -errno);
+    }
 
     /* update SAR, DAR and bytes copied */
     dmac->io[DW_DAR(chan) >> 2] += burst_size;
@@ -366,10 +374,6 @@ static int dma_M2M_read_host_burst(struct dma_chan *dma_chan)
     dma_chan->bytes += burst_size;
     dma_chan->tbytes += burst_size;
 
-    if (dma_chan->fd > 0) {
-        if (write(dma_chan->fd, dma_chan->ptr, burst_size) != burst_size)
-            fprintf(stderr, "error: writing to DMAC file %d\n", -errno);
-    }
 
     /* block complete ? then send IRQ */
     if (dma_chan->bytes >= size || dma_chan->stop) {
@@ -382,7 +386,7 @@ static int dma_M2M_read_host_burst(struct dma_chan *dma_chan)
         dma_host_complete(dmac, chan);
 
         /* free SHM */
-        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan)) ;
+        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan), 0) ;
 
         /* reload LLP and re-arm the timer if LLP exists */
         if (dma_llp_reloaded(dma_chan) && !dma_chan->stop) {
@@ -394,7 +398,7 @@ static int dma_M2M_read_host_burst(struct dma_chan *dma_chan)
                 dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK,
                 dma_chan->tbytes);
 
-            return 1;
+            return 0;
         } else {
             /* clear chan enable bit */
             dmac->io[DW_DMA_CHAN_EN >> 2] &= ~CHAN_RAW_ENABLE(chan);
@@ -423,8 +427,14 @@ static int dma_M2M_write_host_burst(struct dma_chan *dma_chan)
     sar = dmac->io[DW_SAR(chan) >> 2];
     size = dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK;
 
+    burst_size = size;
+
     /* copy burst from SAR to DAR */
     cpu_physical_memory_read(sar, dma_chan->ptr, burst_size);
+    if (dma_chan->fd > 0) {
+        if (write(dma_chan->fd, dma_chan->ptr, burst_size) != burst_size)
+            fprintf(stderr, "error: writing to DMAC file %d\n", -errno);
+    }
 
     /* update SAR, DAR and bytes copied */
     dmac->io[DW_DAR(chan) >> 2] += burst_size;
@@ -444,7 +454,7 @@ static int dma_M2M_write_host_burst(struct dma_chan *dma_chan)
         dma_host_complete(dmac, chan);
 
         /* free SHm */
-        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan));
+        qemu_io_free_shm(ADSP_IO_SHM_DMA(dmac->id, chan), 0);
 
         /* reload LLP and re-arm the timer if LLP exists */
         if (dma_llp_reloaded(dma_chan) && !dma_chan->stop) {
@@ -456,7 +466,7 @@ static int dma_M2M_write_host_burst(struct dma_chan *dma_chan)
                 dmac->io[DW_CTRL_HIGH(chan) >> 2] & DW_CTLH_BLOCK_TS_MASK,
                 dma_chan->tbytes);
 
-            return 1;
+            return 0;
         } else {
             /* clear chan enable bit */
             dmac->io[DW_DMA_CHAN_EN >> 2] &= ~CHAN_RAW_ENABLE(chan);
@@ -502,8 +512,8 @@ static void close_dmac_file(struct dma_chan *dma_chan)
 
 /* TODO: make these configurable on rate etc */
 #define DMA_M2M_BURST_SLEEP    (200 * 1000)    /* 200us */
-#define DMA_M2P_BURST_SLEEP    (6667 * 1000)    /* 6.66ms */
-#define DMA_P2M_BURST_SLEEP    (6667 * 1000)    /* 6.66ms */
+#define DMA_M2P_BURST_SLEEP    (12667 * 1000)    /* 6.66ms */
+#define DMA_P2M_BURST_SLEEP    (12667 * 1000)    /* 6.66ms */
 
 /* dsp mem to host mem work for capture */
 static void * dma_channel_Mhost2Mdsp_work(void *data)
@@ -513,7 +523,7 @@ static void * dma_channel_Mhost2Mdsp_work(void *data)
     open_dmac_file(dma_chan);
 
     do {
-        dma_sleep(DMA_M2M_BURST_SLEEP);
+        // dma_sleep(DMA_M2M_BURST_SLEEP);
     } while (dma_M2M_write_host_burst(dma_chan));
 
     close_dmac_file(dma_chan);
@@ -529,7 +539,7 @@ static void * dma_channel_Mdsp2Mhost_work(void *data)
     open_dmac_file(dma_chan);
 
     do {
-        dma_sleep(DMA_M2M_BURST_SLEEP);
+        // dma_sleep(DMA_M2M_BURST_SLEEP);
     } while (dma_M2M_read_host_burst(dma_chan));
 
     close_dmac_file(dma_chan);
@@ -692,10 +702,10 @@ static void dma_start_transfer(struct adsp_gp_dmac *dmac, uint32_t chan)
     case 0: /* DW_CTLL_FC_M2M */
         /* determine if we are to/from host - MSB == 1 then addr is DSP */
         if (sar & 0x80000000) {
-            dma_host_req(dmac, chan, QEMU_IO_DMA_DIR_READ); /* capture */
+            dma_host_req(dmac, chan, QEMU_IO_DMA_DIR_WRITE); /* capture */
             return;
         } else {
-            dma_host_req(dmac, chan, QEMU_IO_DMA_DIR_WRITE); /* playback */
+            dma_host_req(dmac, chan, QEMU_IO_DMA_DIR_READ); /* playback */
             return;
         }
         break;

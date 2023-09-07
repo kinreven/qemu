@@ -32,7 +32,7 @@ struct byt_pci_data {
     int build_rt5641;
 };
 
-static struct byt_pci_data pdata = {0, 0, 1, 0};
+static struct byt_pci_data pdata = {0, 0, 0, 0};
 
 static uint64_t byt_pci_read(void *opaque, hwaddr addr,
         unsigned size)

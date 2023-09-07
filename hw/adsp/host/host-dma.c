@@ -45,9 +45,11 @@ static void dma_M2M_create_read_shm(struct adsp_host *adsp, struct qemu_io_msg *
     /* map guest physical address space */
     cpu_data = cpu_physical_memory_map(dma_msg->src, &size, 0);
 
+    char name[32];
+    sprintf(name, "dmac:%d.%d", dma_msg->dmac_id, dma_msg->chan_id);
     /* share guest via SHM */
     err = qemu_io_register_shm(
-        adsp->dma_shm_buffer[dma_msg->dmac_id][dma_msg->chan_id].name,
+        /*adsp->dma_shm_buffer[dma_msg->dmac_id][dma_msg->chan_id].*/name,
         ADSP_IO_SHM_DMA(dma_msg->dmac_id, dma_msg->chan_id),
         dma_msg->size, &data);
     if (err < 0)
@@ -90,9 +92,11 @@ static void dma_M2M_create_write_shm(struct adsp_host *adsp, struct qemu_io_msg 
     data = g_malloc(dma_msg->size);
     ack_msg.host_data = (uint64_t)data;
 
+    char name[32];
+    sprintf(name, "dmac:%d.%d", dma_msg->dmac_id, dma_msg->chan_id);
     /* share guest via SHM */
     err = qemu_io_register_shm(
-        adsp->dma_shm_buffer[dma_msg->dmac_id][dma_msg->chan_id].name,
+        /*adsp->dma_shm_buffer[dma_msg->dmac_id][dma_msg->chan_id].*/name,
         ADSP_IO_SHM_DMA(dma_msg->dmac_id, dma_msg->chan_id),
         dma_msg->size, &data);
     if (err < 0)
@@ -119,14 +123,14 @@ static void dma_M2M_destroy_write_shm(struct adsp_host *adsp, struct qemu_io_msg
     }
 
     /* map guest physical address space */
-    cpu_data = cpu_physical_memory_map(dma_msg->src, &size, 1);
+    cpu_data = cpu_physical_memory_map(dma_msg->dest, &size, 1);
 
     /* copy SHM data to CPU and unmap CPU */
-    memcpy(cpu_data, data, dma_msg->size);
+    memcpy(cpu_data, qemu_io_get_shm(ADSP_IO_SHM_DMA(dma_msg->dmac_id, dma_msg->chan_id)), dma_msg->size);
     cpu_physical_memory_unmap(cpu_data, size, 1, size);
 
 free:
-    qemu_io_free_shm(ADSP_IO_SHM_DMA(dma_msg->dmac_id, dma_msg->chan_id));
+    qemu_io_free_shm(ADSP_IO_SHM_DMA(dma_msg->dmac_id, dma_msg->chan_id), 1);
     g_free((void*)dma_msg->host_data);
 }
 
